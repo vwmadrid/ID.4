@@ -3,35 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Calculadora ID.4 Realista</title>
+    <title>Calculadora ID.4 Precisa</title>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #001e50; padding: 15px; display: flex; justify-content: center; min-height: 100vh; margin: 0; color: #333; }
+        body { font-family: 'Segoe UI', sans-serif; background: #001e50; padding: 15px; display: flex; justify-content: center; min-height: 100vh; margin: 0; }
         .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); width: 100%; max-width: 450px; align-self: center; }
-        h2 { color: #001e50; text-align: center; margin-bottom: 20px; border-bottom: 3px solid #00b0f0; padding-bottom: 10px; }
+        h2 { color: #001e50; text-align: center; border-bottom: 3px solid #00b0f0; padding-bottom: 10px; }
         .group { margin-bottom: 15px; }
         label { display: block; font-size: 0.85em; font-weight: bold; color: #666; margin-bottom: 5px; }
         input { width: 100%; padding: 12px; border: 2px solid #eee; border-radius: 10px; box-sizing: border-box; font-size: 1.1em; }
-        button { width:100%; padding:15px; background:#001e50; color:white; border:none; border-radius:10px; cursor:pointer; font-size:1.1em; font-weight: bold; transition: 0.3s; margin-top: 10px; }
-        button:active { background: #00b0f0; }
-        .result { background: #f0f8ff; padding: 20px; border-radius: 12px; margin-top: 25px; border: 1px solid #d0e4f5; display: none; }
-        .result p { margin: 8px 0; display: flex; justify-content: space-between; border-bottom: 1px dashed #ccc; padding-bottom: 5px; }
+        button { width:100%; padding:15px; background:#001e50; color:white; border:none; border-radius:10px; cursor:pointer; font-size:1.1em; font-weight: bold; margin-top: 10px; }
+        .result { background: #f0f8ff; padding: 20px; border-radius: 12px; margin-top: 25px; display: none; }
+        .result p { margin: 8px 0; display: flex; justify-content: space-between; border-bottom: 1px dashed #ccc; }
         .highlight { font-weight: bold; color: #00b0f0; }
-        .warning { font-size: 0.8em; color: #e67e22; font-style: italic; margin-top: 10px; text-align: center; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2>⚡ ID.4 Real-Time</h2>
+    <h2>⚡ Mi ID.4 Pro</h2>
     
     <div class="group">
         <label>Batería Actual (%)</label>
-        <input type="number" id="actualPct" value="20">
+        <input type="number" id="actualPct" value="59">
     </div>
 
     <div class="group">
         <label>Objetivo de Carga (%)</label>
-        <input type="number" id="targetPct" value="80">
+        <input type="number" id="targetPct" value="100">
     </div>
 
     <div class="group">
@@ -40,18 +38,17 @@
     </div>
 
     <div class="group">
-        <label>Potencia del cargador (kW)</label>
-        <input type="number" id="powerKw" value="7.4">
+        <label>Potencia en pantalla (kW)</label>
+        <input type="number" id="powerKw" value="20">
     </div>
 
-    <button onclick="calcular()">CALCULAR TIEMPO REAL</button>
+    <button onclick="calcular()">CALCULAR TIEMPO</button>
 
     <div id="res" class="result">
-        <p>Coste estimado: <span id="costeTotal" class="highlight"></span> €</p>
-        <p>Tiempo estimado: <span id="tiempoTotal" class="highlight"></span></p>
-        <p>Energía: <span id="kwhRecuperar" class="highlight"></span> kWh</p>
-        <p>Autonomía Ganada: <span id="kmExtra" class="highlight"></span> km</p>
-        <div id="avisoCurva" class="warning"></div>
+        <p>Finalización estimada: <span id="horaFin" class="highlight"></span></p>
+        <p>Tiempo de carga: <span id="tiempoTotal" class="highlight"></span></p>
+        <p>Coste: <span id="costeTotal" class="highlight"></span> €</p>
+        <p>Energía a añadir: <span id="kwhRecuperar" class="highlight"></span> kWh</p>
     </div>
 </div>
 
@@ -61,45 +58,42 @@ function calcular() {
     let actual = parseFloat(document.getElementById('actualPct').value);
     let target = parseFloat(document.getElementById('targetPct').value);
     const precio = parseFloat(document.getElementById('priceKwh').value);
-    const potencia = parseFloat(document.getElementById('powerKw').value);
+    const potenciaNominal = parseFloat(document.getElementById('powerKw').value);
 
     let tiempoHoras = 0;
     let kwhTotal = 0;
 
-    // Simulación de curva de carga tramo a tramo
     for (let i = actual; i < target; i++) {
-        let eficiencia = 1.0;
         let kwhTramo = (1 / 100) * totalBat;
+        let potenciaActual = potenciaNominal;
         
-        // Simular caída de potencia después del 80%
-        if (i >= 80) {
-            eficiencia = 0.3; // El coche carga mucho más lento
-        } else if (i >= 95) {
-            eficiencia = 0.1; // El último 5% es eterno
+        // Curva inteligente: solo frena mucho si la potencia es alta (>50kW)
+        // A 20kW (como tu foto), el coche apenas frena hasta el 95%
+        if (i >= 90) {
+            potenciaActual = potenciaNominal * 0.6; // Pequeño ajuste al final
+        }
+        if (i >= 98) {
+            potenciaActual = potenciaNominal * 0.3; // Los últimos 2 puntos siempre cuestan
         }
 
-        tiempoHoras += kwhTramo / (potencia * eficiencia);
+        tiempoHoras += kwhTramo / potenciaActual;
         kwhTotal += kwhTramo;
     }
 
-    const coste = kwhTotal * precio * 1.05; // 5% pérdidas red
-    const km = (kwhTotal / 18) * 100;
-
-    // Formatear tiempo
+    const coste = kwhTotal * precio;
     const h = Math.floor(tiempoHoras);
     const m = Math.round((tiempoHoras - h) * 60);
+
+    // Cálculo de hora de finalización
+    let ahora = new Date();
+    ahora.setMinutes(ahora.getMinutes() + (tiempoHoras * 60));
+    let horaFinal = ahora.getHours().toString().padStart(2, '0') + ":" + ahora.getMinutes().toString().padStart(2, '0');
 
     document.getElementById('res').style.display = 'block';
     document.getElementById('costeTotal').innerText = coste.toFixed(2);
     document.getElementById('tiempoTotal').innerText = h + "h " + m + "min";
     document.getElementById('kwhRecuperar').innerText = kwhTotal.toFixed(1);
-    document.getElementById('kmExtra').innerText = Math.round(km);
-
-    if (target > 80) {
-        document.getElementById('avisoCurva').innerText = "⚠️ Nota: Cargar más del 80% es más lento para proteger la batería.";
-    } else {
-        document.getElementById('avisoCurva').innerText = "";
-    }
+    document.getElementById('horaFin').innerText = horaFinal;
 }
 </script>
 
