@@ -7,14 +7,17 @@
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #001e50; padding: 15px; display: flex; justify-content: center; min-height: 100vh; margin: 0; }
         .card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); width: 100%; max-width: 450px; align-self: center; }
-        h2 { color: #001e50; text-align: center; border-bottom: 3px solid #00b0f0; padding-bottom: 10px; }
+        h2 { color: #001e50; text-align: center; border-bottom: 3px solid #00b0f0; padding-bottom: 10px; margin-top: 0; }
         .group { margin-bottom: 15px; }
         label { display: block; font-size: 0.85em; font-weight: bold; color: #666; margin-bottom: 5px; }
-        input { width: 100%; padding: 12px; border: 2px solid #eee; border-radius: 10px; box-sizing: border-box; font-size: 1.1em; }
-        button { width:100%; padding:15px; background:#001e50; color:white; border:none; border-radius:10px; cursor:pointer; font-size:1.1em; font-weight: bold; margin-top: 10px; }
-        .result { background: #f0f8ff; padding: 20px; border-radius: 12px; margin-top: 25px; display: none; }
-        .result p { margin: 8px 0; display: flex; justify-content: space-between; border-bottom: 1px dashed #ccc; }
-        .highlight { font-weight: bold; color: #00b0f0; }
+        input { width: 100%; padding: 12px; border: 2px solid #eee; border-radius: 10px; box-sizing: border-box; font-size: 1.1em; color: #333; }
+        input:focus { border-color: #00b0f0; outline: none; }
+        button { width:100%; padding:15px; background:#001e50; color:white; border:none; border-radius:10px; cursor:pointer; font-size:1.1em; font-weight: bold; margin-top: 10px; transition: 0.3s; }
+        button:active { background: #00b0f0; transform: scale(0.98); }
+        .result { background: #f0f8ff; padding: 20px; border-radius: 12px; margin-top: 25px; border: 1px solid #d0e4f5; display: none; }
+        .result p { margin: 10px 0; display: flex; justify-content: space-between; border-bottom: 1px dashed #ccc; padding-bottom: 5px; color: #001e50; }
+        .highlight { font-weight: bold; color: #00b0f0; font-size: 1.1em; }
+        .footer-note { font-size: 0.75em; color: #999; text-align: center; margin-top: 15px; }
     </style>
 </head>
 <body>
@@ -28,13 +31,8 @@
     </div>
 
     <div class="group">
-        <label>Objetivo de Carga (%)</label>
+        <label>Cargar hasta (%)</label>
         <input type="number" id="targetPct" value="100">
-    </div>
-
-    <div class="group">
-        <label>Precio kWh (€)</label>
-        <input type="number" id="priceKwh" value="0.10" step="0.001">
     </div>
 
     <div class="group">
@@ -42,14 +40,21 @@
         <input type="number" id="powerKw" value="20">
     </div>
 
-    <button onclick="calcular()">CALCULAR TIEMPO</button>
+    <div class="group">
+        <label>Precio kWh (€)</label>
+        <input type="number" id="priceKwh" value="0.10" step="0.001">
+    </div>
+
+    <button onclick="calcular()">CALCULAR CARGA</button>
 
     <div id="res" class="result">
         <p>Finalización estimada: <span id="horaFin" class="highlight"></span></p>
         <p>Tiempo de carga: <span id="tiempoTotal" class="highlight"></span></p>
-        <p>Coste: <span id="costeTotal" class="highlight"></span> €</p>
-        <p>Energía a añadir: <span id="kwhRecuperar" class="highlight"></span> kWh</p>
+        <p>Coste de esta carga: <span id="costeTotal" class="highlight"></span> €</p>
+        <p>Energía añadida: <span id="kwhRecuperar" class="highlight"></span> kWh</p>
+        <p>Autonomía Ganada: <span id="kmExtra" class="highlight"></span> km</p>
     </div>
+    <div class="footer-note">Ajustado para ID.4 Pro 77kWh</div>
 </div>
 
 <script>
@@ -67,32 +72,39 @@ function calcular() {
         let kwhTramo = (1 / 100) * totalBat;
         let potenciaActual = potenciaNominal;
         
-        // Curva inteligente: solo frena mucho si la potencia es alta (>50kW)
-        // A 20kW (como tu foto), el coche apenas frena hasta el 95%
-        if (i >= 90) {
-            potenciaActual = potenciaNominal * 0.6; // Pequeño ajuste al final
-        }
-        if (i >= 98) {
-            potenciaActual = potenciaNominal * 0.3; // Los últimos 2 puntos siempre cuestan
+        // Ajuste según tus fotos: a 20kW el coche mantiene potencia casi hasta el final
+        if (potenciaNominal <= 22) {
+            if (i >= 96) potenciaActual = potenciaNominal * 0.75; 
+            if (i >= 98) potenciaActual = potenciaNominal * 0.45;
+        } else {
+            // Ajuste para cargadores rápidos (más de 50kW)
+            if (i >= 80) potenciaActual = potenciaNominal * 0.6;
+            if (i >= 95) potenciaActual = potenciaNominal * 0.3;
         }
 
         tiempoHoras += kwhTramo / potenciaActual;
         kwhTotal += kwhTramo;
     }
 
-    const coste = kwhTotal * precio;
+    // Coste real con 3% de pérdida técnica (muy común en AC/DC medio)
+    const coste = kwhTotal * precio * 1.03;
+    
+    // Basado en tu foto: 100% = 424km -> Consumo de 18.16 kWh/100km
+    const kmGanados = (kwhTotal / 18.16) * 100;
+
     const h = Math.floor(tiempoHoras);
     const m = Math.round((tiempoHoras - h) * 60);
 
-    // Cálculo de hora de finalización
+    // Cálculo de hora de finalización real
     let ahora = new Date();
-    ahora.setMinutes(ahora.getMinutes() + (tiempoHoras * 60));
-    let horaFinal = ahora.getHours().toString().padStart(2, '0') + ":" + ahora.getMinutes().toString().padStart(2, '0');
+    let fechaFin = new Date(ahora.getTime() + (tiempoHoras * 60 * 60 * 1000));
+    let horaFinal = fechaFin.getHours().toString().padStart(2, '0') + ":" + fechaFin.getMinutes().toString().padStart(2, '0');
 
     document.getElementById('res').style.display = 'block';
     document.getElementById('costeTotal').innerText = coste.toFixed(2);
     document.getElementById('tiempoTotal').innerText = h + "h " + m + "min";
     document.getElementById('kwhRecuperar').innerText = kwhTotal.toFixed(1);
+    document.getElementById('kmExtra').innerText = Math.round(kmGanados);
     document.getElementById('horaFin').innerText = horaFinal;
 }
 </script>
