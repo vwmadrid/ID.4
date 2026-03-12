@@ -5,15 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Calculadora ID.4 Exacta</title>
     <style>
-        body { font-family: sans-serif; background: #001e50; padding: 20px; display: flex; justify-content: center; }
-        .card { background: white; padding: 25px; border-radius: 20px; width: 100%; max-width: 400px; }
-        h2 { color: #001e50; text-align: center; border-bottom: 2px solid #00b0f0; padding-bottom: 10px; }
+        body { font-family: sans-serif; background: #001e50; padding: 20px; display: flex; justify-content: center; margin: 0; }
+        .card { background: white; padding: 25px; border-radius: 20px; width: 100%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
+        h2 { color: #001e50; text-align: center; border-bottom: 2px solid #00b0f0; padding-bottom: 10px; margin-top: 0; }
         .group { margin-bottom: 15px; }
         label { display: block; font-size: 0.8em; font-weight: bold; margin-bottom: 5px; color: #666; }
         input { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 10px; box-sizing: border-box; font-size: 1.1em; }
-        button { width: 100%; padding: 15px; background: #001e50; color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        .result { background: #f0faff; padding: 15px; border-radius: 10px; margin-top: 20px; display: none; border-left: 5px solid #00b0f0; }
-        .result p { margin: 10px 0; font-size: 1.1em; color: #001e50; display: flex; justify-content: space-between; }
+        button { width: 100%; padding: 15px; background: #001e50; color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer; margin-top: 10px; font-size: 1em; }
+        button:active { background: #00b0f0; }
+        .result { background: #f0faff; padding: 15px; border-radius: 10px; margin-top: 20px; border-left: 5px solid #00b0f0; }
+        .result p { margin: 10px 0; font-size: 1.1em; color: #001e50; display: flex; justify-content: space-between; border-bottom: 1px dashed #d0e4f5; padding-bottom: 5px; }
         .val { font-weight: bold; color: #00b0f0; }
     </style>
 </head>
@@ -47,6 +48,7 @@
     <div id="res" class="result">
         <p>Tiempo de carga: <span id="t_txt" class="val"></span></p>
         <p>Hora de fin: <span id="h_txt" class="val"></span></p>
+        <p>Km ganados: <span id="km_txt" class="val" style="color: #28a745;"></span></p>
         <p>Energía: <span id="k_txt" class="val"></span> kWh</p>
         <p>Coste: <span id="c_txt" class="val"></span> €</p>
     </div>
@@ -60,29 +62,30 @@ function calcular() {
     const kwRed = parseFloat(document.getElementById('potencia').value);
     const eurKwh = parseFloat(document.getElementById('precio').value);
 
-    // 1. Energía que falta por meter
+    // 1. Energía necesaria
     const kwhNecesarios = ((pTarget - pActual) / 100) * batTotal;
 
-    // 2. Cálculo de tiempo (lineal + 5 minutos de balanceo final si llega al 100%)
+    // 2. Tiempo (Cálculo lineal + 5 min de margen si llega al 100%)
     let horasDeCarga = kwhNecesarios / kwRed;
-    if (pTarget > 98) {
-        horasDeCarga += 0.08; // Añadimos unos 5 min de margen por el tramo final
-    }
+    if (pTarget > 98) horasDeCarga += 0.08; 
 
-    // 3. Resultados
     const horas = Math.floor(horasDeCarga);
     const mins = Math.round((horasDeCarga - horas) * 60);
-    const coste = kwhNecesarios * eurKwh;
 
-    // 4. Calcular hora de fin según el reloj del móvil
+    // 3. Kilómetros ganados (Ajustado a tu foto: 424km / 77kWh = 18.16 kWh/100km)
+    const kmGanados = (kwhNecesarios / 18.16) * 100;
+
+    // 4. Coste y Hora de fin
+    const coste = kwhNecesarios * eurKwh;
     let ahora = new Date();
     ahora.setMinutes(ahora.getMinutes() + (horasDeCarga * 60));
     let horaFinal = ahora.getHours().toString().padStart(2, '0') + ":" + ahora.getMinutes().toString().padStart(2, '0');
 
-    // Mostrar
+    // Mostrar resultados
     document.getElementById('res').style.display = 'block';
     document.getElementById('t_txt').innerText = horas + "h " + mins + "min";
     document.getElementById('h_txt').innerText = horaFinal;
+    document.getElementById('km_txt').innerText = "+" + Math.round(kmGanados) + " km";
     document.getElementById('k_txt').innerText = kwhNecesarios.toFixed(1);
     document.getElementById('c_txt').innerText = coste.toFixed(2);
 }
